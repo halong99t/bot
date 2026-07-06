@@ -1,0 +1,8 @@
+{
+  "P>F>S": { "state": "LONG1",  "bias": "LONG",  "structure": "BULL", "alignment": "MOMENTUM", "risk": "low" },
+  "F>P>S": { "state": "LONG2",  "bias": "LONG",  "structure": "BULL", "alignment": "PULLBACK", "risk": "medium" },
+  "F>S>P": { "state": "LONG3",  "bias": "LONG",  "structure": "BULL", "alignment": "REVERSAL", "risk": "high" },
+  "P>S>F": { "state": "SHORT3", "bias": "SHORT", "structure": "BEAR", "alignment": "REVERSAL", "risk": "high" },
+  "S>P>F": { "state": "SHORT2", "bias": "SHORT", "structure": "BEAR", "alignment": "PULLBACK", "risk": "medium" },
+  "S>F>P": { "state": "SHORT1", "bias": "SHORT", "structure": "BEAR", "alignment": "MOMENTUM", "risk": "low" }
+}

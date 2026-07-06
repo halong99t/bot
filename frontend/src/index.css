@@ -1,0 +1,95 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-bg text-gray-200;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-border rounded;
+}
+
+@layer components {
+  .card {
+    @apply bg-panel border border-border rounded-lg p-4;
+  }
+  .btn {
+    @apply px-3 py-1.5 rounded text-sm font-medium transition-colors;
+  }
+  .btn-primary {
+    @apply bg-accent text-black hover:opacity-90;
+  }
+  .btn-danger {
+    @apply bg-down text-white hover:opacity-90;
+  }
+  .btn-ghost {
+    @apply bg-panel2 border border-border hover:border-accent;
+  }
+  .input {
+    @apply bg-panel2 border border-border rounded px-3 py-2 text-sm w-full focus:outline-none focus:border-accent;
+  }
+  .th {
+    @apply text-left text-xs font-medium text-gray-400 uppercase px-3 py-2;
+  }
+  .td {
+    @apply px-3 py-2 text-sm border-t border-border;
+  }
+}
+
+/* Bảng responsive: màn nhỏ (<640px) xếp dọc mỗi dòng thành thẻ, ô hiện "Nhãn: giá trị" */
+@media (max-width: 639px) {
+  table.resp-table {
+    min-width: 0 !important;
+    display: block;
+  }
+  table.resp-table thead {
+    display: none;
+  }
+  table.resp-table tbody,
+  table.resp-table tfoot {
+    display: block;
+  }
+  table.resp-table tbody tr,
+  table.resp-table tfoot tr {
+    display: block;
+    border-top: 2px solid #2b3139;
+    padding: 4px 0;
+  }
+  table.resp-table td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    border: 0 !important;
+    padding: 3px 12px !important;
+    text-align: right;
+  }
+  table.resp-table td::before {
+    content: attr(data-label);
+    color: #8a8f98;
+    font-size: 11px;
+    text-transform: uppercase;
+    font-weight: 500;
+    text-align: left;
+    white-space: nowrap;
+  }
+  table.resp-table td:empty {
+    display: none;
+  }
+  /* Dòng có colSpan (vd tiêu đề nhóm symbol) không cần nhãn */
+  table.resp-table td[colspan]::before {
+    content: "";
+  }
+}

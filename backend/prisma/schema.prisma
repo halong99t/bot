@@ -1,0 +1,209 @@
+// Prisma schema - Crypto Trading Bot
+// Tables: users, settings, coins, market_data, signals, positions, trades, logs
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ===================== USERS =====================
+model User {
+  id        Int        @id @default(autoincrement())
+  email     String     @unique
+  password  String // bcrypt hash
+  role      String     @default("admin")
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+  settings  Settings[]
+
+  @@map("users")
+}
+
+// ===================== SETTINGS =====================
+model Settings {
+  id               Int      @id @default(autoincrement())
+  userId           Int?     @map("user_id")
+  user             User?    @relation(fields: [userId], references: [id])
+  takeProfitPct    Float    @default(90) @map("take_profit_pct")
+  stopLossPct      Float    @default(50) @map("stop_loss_pct")
+  orderSizeUsdt    Float    @default(50) @map("order_size_usdt")
+  leverage         Int      @default(5)
+  marginMode       String   @default("CROSS") @map("margin_mode") // CROSS | ISOLATED
+  tpSlMode         String   @default("MARGIN") @map("tp_sl_mode") // PRICE | MARGIN (ROI ký quỹ)
+  scanIntervalMs   Int      @default(60000) @map("scan_interval_ms")
+  autoTrade        Boolean  @default(false) @map("auto_trade")
+  strategyMode     String   @default("LONG") @map("strategy_mode") // LONG (mô hình cũ) | TREND (Donchian breakout + regime)
+  regimeMode       String   @default("BTC1H_ALT1H") @map("regime_mode") // mode duy nhất: BTC 1h → alt 1h
+  paperTrade       Boolean  @default(true) @map("paper_trade") // true = mô phỏng, KHÔNG đặt lệnh sàn
+  riskPerTradePct  Float    @default(0.5) @map("risk_per_trade_pct") // sizing R-based cho TREND (0 = dùng orderSizeUsdt)
+  binanceApiKey    String?  @map("binance_api_key")
+  binanceApiSecret String?  @map("binance_api_secret")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@map("settings")
+}
+
+// ===================== COINS =====================
+model Coin {
+  id            Int          @id @default(autoincrement())
+  symbol        String       @unique // e.g. BTCUSDT
+  baseAsset     String       @map("base_asset")
+  quoteAsset    String       @map("quote_asset")
+  pricePrecision Int         @default(2) @map("price_precision")
+  qtyPrecision  Int          @default(3) @map("qty_precision")
+  active        Boolean      @default(true)
+  createdAt     DateTime     @default(now()) @map("created_at")
+  marketData    MarketData[]
+  signals       Signal[]
+  positions     Position[]
+  trades        Trade[]
+
+  @@map("coins")
+}
+
+// ===================== MARKET DATA =====================
+model MarketData {
+  id            Int      @id @default(autoincrement())
+  coinId        Int      @map("coin_id")
+  coin          Coin     @relation(fields: [coinId], references: [id], onDelete: Cascade)
+  symbol        String
+  price         Float
+  volume24h     Float    @map("volume_24h")
+  quoteVolume   Float    @map("quote_volume")
+  priceChange24h Float   @map("price_change_24h") // percent
+  fundingRate   Float?   @map("funding_rate")
+  openInterest  Float?   @map("open_interest")
+  marketCap     Float?   @map("market_cap")
+  atr           Float?
+  rsi           Float?
+  ema20         Float?
+  ema50         Float?
+  ema200        Float?
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([symbol, createdAt])
+  @@map("market_data")
+}
+
+// ===================== SIGNALS =====================
+// NOTE: enums replaced with String for SQLite compatibility.
+// type:   LONG | SHORT
+// status: PENDING | EXECUTED | EXPIRED | CANCELLED
+
+model Signal {
+  id          Int          @id @default(autoincrement())
+  coinId      Int          @map("coin_id")
+  coin        Coin         @relation(fields: [coinId], references: [id], onDelete: Cascade)
+  symbol      String
+  type        String       @default("LONG")
+  status      String       @default("PENDING")
+  entryPrice  Float        @map("entry_price")
+  takeProfit  Float        @map("take_profit")
+  stopLoss    Float        @map("stop_loss")
+  probability Float        @default(0) // 0-100 score
+  reason      String? // mô tả lý do/điều kiện thỏa mãn
+  detectedAt  DateTime     @default(now()) @map("detected_at")
+  position    Position?
+
+  @@index([symbol, detectedAt])
+  @@map("signals")
+}
+
+// ===================== POSITIONS =====================
+// NOTE: enum replaced with String for SQLite compatibility.
+// status: OPEN | CLOSED
+
+model Position {
+  id            Int            @id @default(autoincrement())
+  coinId        Int            @map("coin_id")
+  coin          Coin           @relation(fields: [coinId], references: [id], onDelete: Cascade)
+  signalId      Int?           @unique @map("signal_id")
+  signal        Signal?        @relation(fields: [signalId], references: [id])
+  symbol        String
+  side          String         @default("LONG")
+  status        String         @default("OPEN")
+  entryPrice    Float          @map("entry_price")
+  quantity      Float
+  takeProfit    Float          @map("take_profit")
+  stopLoss      Float          @map("stop_loss")
+  leverage      Int            @default(5)
+  currentPrice  Float?         @map("current_price")
+  pnl           Float          @default(0)
+  pnlPct        Float          @default(0) @map("pnl_pct")
+  binanceOrderId String?       @map("binance_order_id")
+  paper         Boolean        @default(false) // vị thế mô phỏng (không đặt lệnh sàn)
+  atrEntry      Float?         @map("atr_entry") // ATR lúc vào (cho trailing Chandelier TREND)
+  highWater     Float?         @map("high_water") // giá cực trị thuận lợi kể từ entry (trailing)
+  openedAt      DateTime       @default(now()) @map("opened_at")
+  trade         Trade?
+
+  @@index([symbol, status])
+  @@map("positions")
+}
+
+// ===================== TRADES (closed history) =====================
+model Trade {
+  id          Int      @id @default(autoincrement())
+  coinId      Int      @map("coin_id")
+  coin        Coin     @relation(fields: [coinId], references: [id], onDelete: Cascade)
+  positionId  Int?     @unique @map("position_id")
+  position    Position? @relation(fields: [positionId], references: [id])
+  symbol      String
+  side        String   @default("LONG")
+  entryPrice  Float    @map("entry_price")
+  exitPrice   Float    @map("exit_price")
+  quantity    Float
+  pnl         Float
+  pnlPct      Float    @map("pnl_pct")
+  closeReason String   @map("close_reason") // TP | SL | TRAIL | FLIP | MANUAL
+  paper       Boolean  @default(false)
+  openedAt    DateTime @map("opened_at")
+  closedAt    DateTime @default(now()) @map("closed_at")
+
+  @@index([symbol, closedAt])
+  @@map("trades")
+}
+
+// ===================== BACKTEST HISTORY =====================
+// Lưu lịch sử backtest. Khóa duy nhất: (paramsHash + interval + year).
+// -> Mỗi bộ thông số + khung nến, mỗi năm chỉ giữ 1 bản ghi (chạy lại -> ghi đè).
+// Mỗi lần chạy được TÁCH theo từng tháng: 1 tháng = 1 bản ghi.
+// Khóa duy nhất: (paramsHash + interval + year + month) — chạy lại cùng bộ + cùng tháng => ghi đè.
+model BacktestHistory {
+  id         Int      @id @default(autoincrement())
+  strategy   String   @default("LONG") // LONG (mô hình LONG) | EMA (EMA classifier) — để phân tích riêng
+  paramsHash String   @map("params_hash") // fingerprint của bộ thông số (không gồm interval/năm/thời gian)
+  interval   String   @default("1h") // khung nến (tập trung 1h)
+  year       Int // năm của tháng
+  month      Int      @default(0) // tháng 1-12
+  period     String   @default("") // "YYYY-MM" (cho hiển thị/sắp xếp)
+  label      String? // ghi chú tùy chọn của người dùng
+  params     String // JSON: toàn bộ thông số đã dùng (để hiển thị / chạy lại)
+  summary    String // JSON: các chỉ số tóm tắt của THÁNG (roiPct, winRate, totalTrades, pnlUsdt...)
+  result     String // JSON: BacktestResult của riêng tháng (đã tách lệnh + tính lại)
+  fromDate   String   @map("from_date") // ISO (đầu tháng)
+  toDate     String   @map("to_date") // ISO (đầu tháng kế)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@unique([paramsHash, interval, year, month])
+  @@index([strategy, year, month])
+  @@map("backtest_history")
+}
+
+// ===================== LOGS =====================
+model Log {
+  id        Int      @id @default(autoincrement())
+  level     String   @default("info") // info | warn | error
+  scope     String   @default("system") // scanner | strategy | trading | binance | system
+  message   String
+  meta      String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([scope, createdAt])
+  @@map("logs")
+}

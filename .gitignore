@@ -1,0 +1,54 @@
+# ===== Dependencies =====
+node_modules/
+**/node_modules/
+
+# ===== Build output =====
+dist/
+build/
+backend/dist/
+frontend/dist/
+*.tsbuildinfo
+
+# ===== Env / secrets =====
+.env
+.env.*
+!.env.example
+*.local
+
+# ===== Database (SQLite local) =====
+*.db
+*.db-journal
+*.sqlite
+backend/prisma/dev.db*
+
+# ===== Dữ liệu nến 1m (rất lớn ~27GB, KHÔNG commit) =====
+1m/
+parts/
+*.parquet
+_cache/
+
+# ===== Logs =====
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ===== Editor / OS =====
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# ===== Misc =====
+coverage/
+.cache/
+tmp/
+
+# ===== Scratch / research artifacts (regenerable, một số nặng) =====
+/backend/_*
+_bt_run.ts
+
+# ===== Claude local settings (giữ skills/commands nếu có, bỏ settings máy cá nhân) =====
+.claude/settings.local.json
